@@ -5,7 +5,7 @@ public record PagedResponse<T>(
     T data,
     Meta meta
 ) implements ApiResponse<T> {
-    public static <T> PagedResponse<T> of(boolean success,T data, Meta meta) {
-        return new PagedResponse<T>(success, data, meta);
+    public static <T> PagedResponse<T> of(T data, Meta meta) {
+        return new PagedResponse<T>(true, data, meta);
     }
 }

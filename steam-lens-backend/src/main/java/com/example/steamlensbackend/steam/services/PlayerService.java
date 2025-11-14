@@ -1,6 +1,8 @@
 package com.example.steamlensbackend.steam.services;
 
 import com.example.steamlensbackend.steam.dto.response.GameResponse;
+import com.example.steamlensbackend.steam.wrappers.Meta;
+import com.example.steamlensbackend.steam.wrappers.PagedResponse;
 import com.example.steamlensbackend.steam.wrappers.SuccessResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -16,9 +18,23 @@ public class PlayerService {
         this.steamService = steamService;
     }
 
-    public Mono<SuccessResponse<List<GameResponse>>> getUserGames(String steamid) {
+    public Mono<PagedResponse<List<GameResponse>>> getUserGames(String steamid, int page, int pageSize) {
+
         return steamService.getUserOwnedGames(steamid, null).map(
-                response -> SuccessResponse.of(response.response().games())
+                response -> response.response().games()
+        )
+        .map(
+            gameResponses -> {
+                int totalPages = (int) Math.ceil((double) gameResponses.size() / pageSize);
+                int offset = page * pageSize;
+
+                List<GameResponse> content = gameResponses.stream()
+                        .skip(offset)
+                        .limit(pageSize)
+                        .toList();
+
+                return PagedResponse.of(content, new Meta(page, pageSize, totalPages, gameResponses.size()));
+            }
         );
     }
 
