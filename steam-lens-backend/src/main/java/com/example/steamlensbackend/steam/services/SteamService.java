@@ -3,8 +3,10 @@ package com.example.steamlensbackend.steam.services;
 import com.example.steamlensbackend.steam.dto.options.GetOwnedGamesOptions;
 import com.example.steamlensbackend.steam.dto.response.OwnedGamesResponse;
 import com.example.steamlensbackend.steam.dto.response.SteamBaseResponse;
+import com.example.steamlensbackend.steam.exceptions.SteamException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -21,6 +23,7 @@ public class SteamService {
         this.apiKey = apiKey;
     }
 
+    @Cacheable(value = "steamGames", key = "#steamId")
     public Mono<SteamBaseResponse<OwnedGamesResponse>> getUserOwnedGames(
             String steamId,
             GetOwnedGamesOptions options
@@ -28,6 +31,8 @@ public class SteamService {
     {
         GetOwnedGamesOptions defaultOptions = GetOwnedGamesOptions.defaultOptions();
         GetOwnedGamesOptions finalOptions = options == null ? defaultOptions : options.mergeWithDefaults(defaultOptions);
+
+        System.out.println("CACHE MISS! Pobieram z API Steam dla: " + steamId);
 
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -44,9 +49,9 @@ public class SteamService {
                 )
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<SteamBaseResponse<OwnedGamesResponse>>() {})
-                .onErrorResume(e -> {
-                    System.err.println("Error getting playtime for " + steamId + e.getMessage() + this.apiKey);
-                    return Mono.empty();
+                .onErrorMap(e -> {
+                    System.out.println("Error getting owned games" + e);
+                    return new SteamException(e.getMessage(), e);
                 });
 
     }
