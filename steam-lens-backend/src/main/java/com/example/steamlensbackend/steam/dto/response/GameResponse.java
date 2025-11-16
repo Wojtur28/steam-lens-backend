@@ -17,6 +17,7 @@ public record GameResponse(
         @JsonProperty("has_workshop") boolean hasWorkshop,
         @JsonProperty("has_market") boolean hasMarket,
         @JsonProperty("has_dlc") boolean hasDlc,
-        @JsonProperty("playtime_disconnected") int playtimeDisconnected
+        @JsonProperty("playtime_disconnected") int playtimeDisconnected,
+        @JsonProperty("playtime_2weeks") int playtime2Weeks
 ) {
 }
