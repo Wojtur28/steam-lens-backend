@@ -4,6 +4,7 @@ import com.example.steamlensbackend.steam.dto.response.RecentPlayedGame;
 import com.example.steamlensbackend.steam.dto.response.TotalLastTwoWeeksPlaytime;
 import com.example.steamlensbackend.steam.dto.response.DashboardStatisticResponse;
 import com.example.steamlensbackend.steam.dto.response.GameResponse;
+import com.example.steamlensbackend.steam.wrappers.SuccessResponse;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -22,7 +23,7 @@ public class StatisticsService {
         this.steamService = steamService;
     }
 
-    public Mono<DashboardStatisticResponse> getDashboardStatistics(String steamId) {
+    public Mono<SuccessResponse<DashboardStatisticResponse>> getDashboardStatistics(String steamId) {
         Mono<List<GameResponse>> games = this.steamService.getUserOwnedGames(steamId, null).map(
                 response -> response.response().games()
         );
@@ -40,7 +41,7 @@ public class StatisticsService {
 
                             return new DashboardStatisticResponse(totalLastTwoWeeksPlaytime, totalRecentPlayedGames, recentPlayedGamesList);
                         }
-                );
+                ).map( statistics -> SuccessResponse.of(statistics));
     }
 
     private Mono<List<RecentPlayedGame>> getRecentPlayedGame(Mono<List<GameResponse>> gamesFromLastTwoWeeks) {

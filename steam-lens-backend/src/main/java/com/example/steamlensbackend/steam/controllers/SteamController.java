@@ -32,7 +32,7 @@ public class SteamController {
     }
 
     @GetMapping("/dashboard/{steamId}")
-    public Mono<DashboardStatisticResponse> getUserStatistics(@PathVariable String steamId) {
+    public Mono<SuccessResponse<DashboardStatisticResponse>> getUserStatistics(@PathVariable String steamId) {
         return this.statisticsService.getDashboardStatistics(steamId);
     }
 }
