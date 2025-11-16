@@ -1,5 +1,6 @@
 package com.example.steamlensbackend.steam.services;
 
+import com.example.steamlensbackend.steam.dto.response.RecentPlayedGame;
 import com.example.steamlensbackend.steam.dto.response.TotalLastTwoWeeksPlaytime;
 import com.example.steamlensbackend.steam.dto.response.DashboardStatisticResponse;
 import com.example.steamlensbackend.steam.dto.response.GameResponse;
@@ -27,7 +28,28 @@ public class StatisticsService {
         );
         Mono<List<GameResponse>> gamesFromLastTwoWeeks = this.getLastTwoWeeksPlayedGames(games);
         Mono<TotalLastTwoWeeksPlaytime> lastTwoWeeksPlaytime = this.totalLastTwoWeeksPlaytime(gamesFromLastTwoWeeks);
+        Mono<Integer> numberOfRecentPlayedGames = gamesFromLastTwoWeeks.map(gameResponses -> gameResponses.size());
 
+        return new DashboardStatisticResponse(lastTwoWeeksPlaytime, numberOfRecentPlayedGames, );
+    }
+
+    private Mono<RecentPlayedGame> getRecentPlayedGame(Mono<List<GameResponse>> gamesFromLastTwoWeeks) {
+        return gamesFromLastTwoWeeks.map(
+                gameResponses -> {
+                    gameResponses.stream().map(
+                            game -> {
+                                String imgIconUrl = String.format(
+                                        "http://media.steampowered.com/steamcommunity/public/images/apps/%s/%s.jpg",
+                                        game.appid(), game.imgIconUrl()
+                                );
+                                Long foreverPlaytimeMinutes = (long) game.playtimeForever();
+
+
+                                return new RecentPlayedGame(game.name(),)
+                            }
+                    )
+                }
+        )
     }
 
     private Mono<TotalLastTwoWeeksPlaytime> totalLastTwoWeeksPlaytime(Mono<List<GameResponse>> games) {
