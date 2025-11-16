@@ -29,27 +29,40 @@ public class StatisticsService {
         Mono<List<GameResponse>> gamesFromLastTwoWeeks = this.getLastTwoWeeksPlayedGames(games);
         Mono<TotalLastTwoWeeksPlaytime> lastTwoWeeksPlaytime = this.totalLastTwoWeeksPlaytime(gamesFromLastTwoWeeks);
         Mono<Integer> numberOfRecentPlayedGames = gamesFromLastTwoWeeks.map(gameResponses -> gameResponses.size());
+        Mono<List<RecentPlayedGame>> recentPlayedGames = this.getRecentPlayedGame(gamesFromLastTwoWeeks);
 
-        return new DashboardStatisticResponse(lastTwoWeeksPlaytime, numberOfRecentPlayedGames, );
+        return Mono.zip(lastTwoWeeksPlaytime, numberOfRecentPlayedGames, recentPlayedGames)
+                .map(
+                        tuple -> {
+                            TotalLastTwoWeeksPlaytime totalLastTwoWeeksPlaytime = tuple.getT1();
+                            Integer totalRecentPlayedGames = tuple.getT2();
+                            List<RecentPlayedGame> recentPlayedGamesList = tuple.getT3();
+
+                            return new DashboardStatisticResponse(totalLastTwoWeeksPlaytime, totalRecentPlayedGames, recentPlayedGamesList);
+                        }
+                );
     }
 
-    private Mono<RecentPlayedGame> getRecentPlayedGame(Mono<List<GameResponse>> gamesFromLastTwoWeeks) {
+    private Mono<List<RecentPlayedGame>> getRecentPlayedGame(Mono<List<GameResponse>> gamesFromLastTwoWeeks) {
         return gamesFromLastTwoWeeks.map(
                 gameResponses -> {
-                    gameResponses.stream().map(
+                    return gameResponses.stream().map(
                             game -> {
                                 String imgIconUrl = String.format(
                                         "http://media.steampowered.com/steamcommunity/public/images/apps/%s/%s.jpg",
                                         game.appid(), game.imgIconUrl()
                                 );
                                 Long foreverPlaytimeMinutes = (long) game.playtimeForever();
+                                Long foreverPlaytimeHours = (long) game.playtimeForever() / 60;
+                                Long playtime2WeeksMinutes = (long) game.playtime2Weeks();
+                                Long playtime2WeeksHours = (long) game.playtime2Weeks() / 60;
 
 
-                                return new RecentPlayedGame(game.name(),)
+                                return new RecentPlayedGame(game.name(), imgIconUrl, foreverPlaytimeHours, foreverPlaytimeMinutes, playtime2WeeksHours, playtime2WeeksMinutes);
                             }
-                    )
+                    ).toList();
                 }
-        )
+        );
     }
 
     private Mono<TotalLastTwoWeeksPlaytime> totalLastTwoWeeksPlaytime(Mono<List<GameResponse>> games) {
@@ -58,7 +71,7 @@ public class StatisticsService {
                     Long totalMinutes = gameList.stream().mapToLong(GameResponse::playtime2Weeks).sum();
                     Long totalHours = (long) (totalMinutes / 60);
 
-                    return new TotalLastTwoWeeksPlaytime(totalMinutes, totalHours);
+                    return new TotalLastTwoWeeksPlaytime(totalHours, totalMinutes);
                 }
         );
     }
@@ -69,7 +82,7 @@ public class StatisticsService {
                         gameList.stream().filter(
                                 game -> {
                                     Instant lastTimePlayed = Instant.ofEpochSecond(game.rtimeLastPlayed());
-                                    Instant twoWeeksAgo = Instant.now().minus(2, ChronoUnit.WEEKS);
+                                    Instant twoWeeksAgo = Instant.now().minus(14, ChronoUnit.DAYS);
 
                                     return lastTimePlayed.isAfter(twoWeeksAgo) && lastTimePlayed.isBefore(Instant.now());
                                 }
