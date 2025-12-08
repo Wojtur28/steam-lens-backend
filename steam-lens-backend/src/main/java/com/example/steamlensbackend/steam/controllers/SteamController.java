@@ -3,8 +3,10 @@ package com.example.steamlensbackend.steam.controllers;
 import com.example.steamlensbackend.steam.dto.requests.PageableRequest;
 import com.example.steamlensbackend.steam.dto.response.DashboardStatisticResponse;
 import com.example.steamlensbackend.steam.dto.response.GameResponse;
+import com.example.steamlensbackend.steam.dto.response.SteamGameDetailsResponse;
 import com.example.steamlensbackend.steam.services.PlayerService;
 import com.example.steamlensbackend.steam.services.StatisticsService;
+import com.example.steamlensbackend.steam.services.SteamService;
 import com.example.steamlensbackend.steam.wrappers.PagedResponse;
 import com.example.steamlensbackend.steam.wrappers.SuccessResponse;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,10 +22,12 @@ import java.util.List;
 public class SteamController {
     private final PlayerService playerService;
     private final StatisticsService statisticsService;
+    private final SteamService steamService;
 
-    public SteamController(PlayerService playerService,  StatisticsService statisticsService) {
+    public SteamController(PlayerService playerService,  StatisticsService statisticsService, SteamService steamService) {
         this.playerService = playerService;
         this.statisticsService = statisticsService;
+        this.steamService = steamService;
     }
 
     @GetMapping("/user/games/{steamId}")
@@ -34,5 +38,11 @@ public class SteamController {
     @GetMapping("/dashboard/{steamId}")
     public Mono<SuccessResponse<DashboardStatisticResponse>> getUserStatistics(@PathVariable String steamId) {
         return this.statisticsService.getDashboardStatistics(steamId);
+    }
+
+    @GetMapping("/games/{appId}")
+    public Mono<SuccessResponse<SteamGameDetailsResponse>> getGameDetails(@PathVariable String appId) {
+        return steamService.getSteamGameDetails(appId)
+                .map(SuccessResponse::of);
     }
 }

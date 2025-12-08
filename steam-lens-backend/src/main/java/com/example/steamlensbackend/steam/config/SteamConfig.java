@@ -13,10 +13,21 @@ public class SteamConfig {
     @Value("${steam.api.baseUrl}")
     private String steamBaseUrl;
 
+    @Value("${steam.store.api.baseUrl}")
+    private String steamStoreBaseUrl;
+
     @Bean
     public WebClient steamWebClient(WebClient.Builder builder) {
         return builder
                 .baseUrl(steamBaseUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
+    @Bean
+    public WebClient steamStoreWebClient(WebClient.Builder builder) {
+        return builder
+                .baseUrl(steamStoreBaseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
