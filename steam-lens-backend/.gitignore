@@ -82,3 +82,5 @@ secrets.yml
 node_modules
 /.kotlin/
 
+/.idea
+../.idea/
