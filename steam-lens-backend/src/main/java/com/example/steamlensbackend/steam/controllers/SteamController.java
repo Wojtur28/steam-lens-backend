@@ -4,6 +4,7 @@ import com.example.steamlensbackend.steam.dto.requests.PageableRequest;
 import com.example.steamlensbackend.steam.dto.response.DashboardStatisticResponse;
 import com.example.steamlensbackend.steam.dto.response.GameResponse;
 import com.example.steamlensbackend.steam.dto.response.SteamGameDetailsResponse;
+import com.example.steamlensbackend.steam.dto.response.SteamPlayerSummariesResponse;
 import com.example.steamlensbackend.steam.services.PlayerService;
 import com.example.steamlensbackend.steam.services.StatisticsService;
 import com.example.steamlensbackend.steam.services.SteamService;
@@ -43,6 +44,12 @@ public class SteamController {
     @GetMapping("/games/{appId}")
     public Mono<SuccessResponse<SteamGameDetailsResponse>> getGameDetails(@PathVariable String appId) {
         return steamService.getSteamGameDetails(appId)
+                .map(SuccessResponse::of);
+    }
+
+    @GetMapping("/users/{steamids}/summaries")
+    public Mono<SuccessResponse<SteamPlayerSummariesResponse>> getPlayerSummaries(@PathVariable String steamids) {
+        return steamService.getPlayerSummaries(steamids)
                 .map(SuccessResponse::of);
     }
 }

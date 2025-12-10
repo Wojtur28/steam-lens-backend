@@ -15,7 +15,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class SteamService {
@@ -134,8 +137,9 @@ public class SteamService {
                 });
     }
 
-    public Mono<SteamBaseResponse<SharedLibraryAppsResponse>> getSharedLibraryApps(String accessToken, String familyGroupId, String steamId) {
-        return webClient.get()
+    public Mono<SharedLibraryWithOwnersResponse> getSharedLibraryApps(String accessToken, String familyGroupId, String steamId) {
+        // 1. Pobieramy bibliotekę gier (pierwotne zapytanie)
+        Mono<SharedLibraryAppsResponse> libraryMono = webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("IFamilyGroupsService/GetSharedLibraryApps/v1/")
                         .queryParam("access_token", accessToken)
@@ -149,13 +153,49 @@ public class SteamService {
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, this::handleHttpError)
                 .bodyToMono(new ParameterizedTypeReference<SteamBaseResponse<SharedLibraryAppsResponse>>() {})
-                .doOnError(e -> {
-                    System.out.println("ERROR IN GET SHARED LIBRARY: " + e.getMessage());
-                    e.printStackTrace();
-                })
+                .map(SteamBaseResponse::response) // Wyciągamy 'response' z wrappera Steam
                 .onErrorMap(e -> {
                     if (e instanceof SteamException) return e;
                     return new SteamException("Error getting shared library apps", e);
+                });
+
+        // 2. Przetwarzamy wynik, aby pobrać dane użytkowników
+        return libraryMono.flatMap(libraryResponse -> {
+            // Zbieramy unikalne ID właścicieli do Setu
+            Set<String> uniqueOwnerIds = libraryResponse.apps().stream()
+                    .flatMap(app -> app.ownerSteamIds().stream())
+                    .collect(Collectors.toSet());
+
+            // Jeśli nie ma żadnych właścicieli (pusta lista), zwracamy samą bibliotekę
+            if (uniqueOwnerIds.isEmpty()) {
+                return Mono.just(new SharedLibraryWithOwnersResponse(libraryResponse, Collections.emptyList()));
+            }
+
+            // Łączymy ID w jeden string oddzielony przecinkami
+            String steamIdsParam = String.join(",", uniqueOwnerIds);
+
+            // 3. Wywołujemy getPlayerSummaries dla zebranych ID
+            return getPlayerSummaries(steamIdsParam)
+                    .map(summaryResponse -> summaryResponse.response().players())
+                    .map(players -> new SharedLibraryWithOwnersResponse(libraryResponse, players));
+        });
+    }
+
+    @Cacheable(value = "playerSummaries", key = "#steamids")
+    public Mono<SteamPlayerSummariesResponse> getPlayerSummaries(String steamids) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("ISteamUser/GetPlayerSummaries/v2/")
+                        .queryParam("key", apiKey)
+                        .queryParam("steamids", steamids)
+                        .build()
+                )
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, this::handleHttpError)
+                .bodyToMono(new ParameterizedTypeReference<SteamPlayerSummariesResponse>() {})
+                .onErrorMap(e -> {
+                    if (e instanceof SteamException) return e;
+                    return new SteamException("Error getting player summaries", e);
                 });
     }
 }

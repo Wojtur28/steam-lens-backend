@@ -3,6 +3,7 @@ package com.example.steamlensbackend.steam.controllers;
 import com.example.steamlensbackend.steam.dto.response.FamilyGroupDetailsResponse;
 import com.example.steamlensbackend.steam.dto.response.FamilyGroupForUserResponse;
 import com.example.steamlensbackend.steam.dto.response.SharedLibraryAppsResponse;
+import com.example.steamlensbackend.steam.dto.response.SharedLibraryWithOwnersResponse;
 import com.example.steamlensbackend.steam.services.SteamService;
 import com.example.steamlensbackend.steam.wrappers.SuccessResponse;
 import org.springframework.web.bind.annotation.*;
@@ -37,12 +38,12 @@ public class FamilyController {
     }
 
     @GetMapping("/shared-library/{familyGroupId}")
-    public Mono<SuccessResponse<SharedLibraryAppsResponse>> getSharedLibrary(
+    public Mono<SuccessResponse<SharedLibraryWithOwnersResponse>> getSharedLibrary(
             @RequestHeader("X-Steam-Access-Token") String accessToken,
             @PathVariable String familyGroupId,
             @RequestParam String steamId) {
 
         return steamService.getSharedLibraryApps(accessToken, familyGroupId, steamId)
-                .map(response -> SuccessResponse.of(response.response()));
+                .map(SuccessResponse::of);
     }
 }
