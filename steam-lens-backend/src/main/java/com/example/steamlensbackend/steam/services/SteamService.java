@@ -8,12 +8,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.ClientResponse;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
-
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Collections;
 import java.util.Map;
@@ -23,180 +23,187 @@ import java.util.stream.Collectors;
 @Service
 public class SteamService {
 
-    private final WebClient webClient;
-    private final WebClient storeWebClient;
+    private final RestTemplate webClient;
+    private final RestTemplate storeWebClient;
     private final String apiKey;
 
-    public SteamService(@Qualifier("steamWebClient") WebClient webClient,
-                        @Qualifier("steamStoreWebClient") WebClient storeWebClient,
+    public SteamService(@Qualifier("steamWebClient") RestTemplate webClient,
+                        @Qualifier("steamStoreWebClient") RestTemplate storeWebClient,
                         @Value("${steam.api.key}") String apiKey) {
         this.webClient = webClient;
         this.storeWebClient = storeWebClient;
         this.apiKey = apiKey;
     }
 
-    private Mono<Throwable> handleHttpError(ClientResponse response) {
-        return response.bodyToMono(String.class).flatMap(body -> {
-            System.out.println("STEAM API ERROR: " + response.statusCode() + " Body: " + body);
-            return Mono.error(new SteamException("Steam API returned error: " + response.statusCode() + " " + body, null));
-        });
-    }
-
     @Cacheable(value = "steamGames", key = "#steamId")
-    public Mono<SteamBaseResponse<OwnedGamesResponse>> getUserOwnedGames(
+    public SteamBaseResponse<OwnedGamesResponse> getUserOwnedGames(
             String steamId,
             GetOwnedGamesOptions options
-    )
-    {
+    ) {
         GetOwnedGamesOptions defaultOptions = GetOwnedGamesOptions.defaultOptions();
         GetOwnedGamesOptions finalOptions = options == null ? defaultOptions : options.mergeWithDefaults(defaultOptions);
 
         System.out.println("CACHE MISS! Pobieram z API Steam dla: " + steamId);
 
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("IPlayerService/GetOwnedGames/v1/")
-                        .queryParam("key", apiKey)
-                        .queryParam("steamid", steamId)
-                        .queryParam("include_appinfo", finalOptions.includeAppInfo())
-                        .queryParam("include_played_free_games", finalOptions.includePlayedFreeGames())
-                        .queryParam("language", finalOptions.language())
-                        .queryParam("include_free_sub", finalOptions.includeFreeSub())
-                        .queryParam("skip_unvetted_apps", finalOptions.skipUnvettedApps())
-                        .queryParam("include_extended_appinfo", finalOptions.includeExtendedAppInfo())
-                        .build()
-                )
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, this::handleHttpError)
-                .bodyToMono(new ParameterizedTypeReference<SteamBaseResponse<OwnedGamesResponse>>() {})
-                .onErrorMap(e -> {
-                    if (e instanceof SteamException) return e;
-                    System.out.println("Error getting owned games" + e);
-                    return new SteamException(e.getMessage(), e);
-                });
+        String url = UriComponentsBuilder.fromPath("/IPlayerService/GetOwnedGames/v1/")
+                .queryParam("key", apiKey)
+                .queryParam("steamid", steamId)
+                .queryParam("include_appinfo", finalOptions.includeAppInfo())
+                .queryParam("include_played_free_games", finalOptions.includePlayedFreeGames())
+                .queryParam("language", finalOptions.language())
+                .queryParam("include_free_sub", finalOptions.includeFreeSub())
+                .queryParam("skip_unvetted_apps", finalOptions.skipUnvettedApps())
+                .queryParam("include_extended_appinfo", finalOptions.includeExtendedAppInfo())
+                .toUriString();
 
+        try {
+            ResponseEntity<SteamBaseResponse<OwnedGamesResponse>> response = webClient.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<SteamBaseResponse<OwnedGamesResponse>>() {}
+            );
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            System.out.println("STEAM API ERROR: " + e.getStatusCode() + " Body: " + e.getResponseBodyAsString());
+            throw new SteamException("Steam API returned error: " + e.getStatusCode() + " " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            System.out.println("Error getting owned games: " + e.getMessage());
+            throw new SteamException("Error getting owned games", e);
+        }
     }
 
-    public Mono<SteamBaseResponse<FamilyGroupForUserResponse>> getFamilyGroupForUser(String steamId, String accessToken) {
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("IFamilyGroupsService/GetFamilyGroupForUser/v1/")
-                        .queryParam("access_token", accessToken)
-                        .queryParam("include_family_group_response", true)
-                        .build()
-                )
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, this::handleHttpError)
-                .bodyToMono(new ParameterizedTypeReference<SteamBaseResponse<FamilyGroupForUserResponse>>() {})
-                .onErrorMap(e -> {
-                    if (e instanceof SteamException) return e;
-                    return new SteamException("Error getting family group for user", e);
-                });
+    public SteamBaseResponse<FamilyGroupForUserResponse> getFamilyGroupForUser(String steamId, String accessToken) {
+        String url = UriComponentsBuilder.fromPath("/IFamilyGroupsService/GetFamilyGroupForUser/v1/")
+                .queryParam("access_token", accessToken)
+                .queryParam("include_family_group_response", true)
+                .toUriString();
+        try {
+            ResponseEntity<SteamBaseResponse<FamilyGroupForUserResponse>> response = webClient.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<SteamBaseResponse<FamilyGroupForUserResponse>>() {}
+            );
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            throw new SteamException("Steam API returned error: " + e.getStatusCode() + " " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new SteamException("Error getting family group for user", e);
+        }
     }
 
-    public Mono<SteamBaseResponse<FamilyGroupDetailsResponse>> getFamilyGroupDetails(String familyGroupId, String accessToken) {
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("IFamilyGroupsService/GetFamilyGroup/v1/")
-                        .queryParam("access_token", accessToken)
-                        .queryParam("family_groupid", familyGroupId)
-                        .build()
-                )
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, this::handleHttpError)
-                .bodyToMono(new ParameterizedTypeReference<SteamBaseResponse<FamilyGroupDetailsResponse>>() {})
-                .onErrorMap(e -> {
-                    if (e instanceof SteamException) return e;
-                    return new SteamException("Error getting family group details", e);
-                });
+    public SteamBaseResponse<FamilyGroupDetailsResponse> getFamilyGroupDetails(String familyGroupId, String accessToken) {
+        String url = UriComponentsBuilder.fromPath("/IFamilyGroupsService/GetFamilyGroup/v1/")
+                .queryParam("access_token", accessToken)
+                .queryParam("family_groupid", familyGroupId)
+                .toUriString();
+        try {
+            ResponseEntity<SteamBaseResponse<FamilyGroupDetailsResponse>> response = webClient.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<SteamBaseResponse<FamilyGroupDetailsResponse>>() {}
+            );
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            throw new SteamException("Steam API returned error: " + e.getStatusCode() + " " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new SteamException("Error getting family group details", e);
+        }
     }
 
+    public SteamGameDetailsResponse getSteamGameDetails(String appId) {
+        String url = UriComponentsBuilder.fromPath("/api/appdetails")
+                .queryParam("appids", appId)
+                .toUriString();
 
-    public Mono<SteamGameDetailsResponse> getSteamGameDetails(String appId) {
-        return storeWebClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/api/appdetails")
-                        .queryParam("appids", appId)
-                        .build()
-                )
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, this::handleHttpError)
-                .bodyToMono(new ParameterizedTypeReference<Map<String, SteamAppWrapper>>() {})
-                .map(responseMap -> {
-                    SteamAppWrapper wrapper = responseMap.get(appId);
+        try {
+            ResponseEntity<Map<String, SteamAppWrapper>> response = storeWebClient.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, SteamAppWrapper>>() {}
+            );
 
-                    if (wrapper != null && wrapper.success() && wrapper.data() != null) {
-                        return wrapper.data();
-                    } else {
-                        throw new SteamException("Game details not found or success is false for appId: " + appId, null);
-                    }
-                })
-                .onErrorMap(e -> {
-                    if (e instanceof SteamException) return e;
-                    return new SteamException("Error getting game details for appId: " + appId, e);
-                });
+            Map<String, SteamAppWrapper> responseMap = response.getBody();
+            if (responseMap != null) {
+                SteamAppWrapper wrapper = responseMap.get(appId);
+                if (wrapper != null && wrapper.success() && wrapper.data() != null) {
+                    return wrapper.data();
+                }
+            }
+            throw new SteamException("Game details not found or success is false for appId: " + appId, null);
+
+        } catch (HttpClientErrorException e) {
+            throw new SteamException("Steam API returned error: " + e.getStatusCode() + " " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new SteamException("Error getting game details for appId: " + appId, e);
+        }
     }
 
-    public Mono<SharedLibraryWithOwnersResponse> getSharedLibraryApps(String accessToken, String familyGroupId, String steamId) {
-        // 1. Pobieramy bibliotekę gier (pierwotne zapytanie)
-        Mono<SharedLibraryAppsResponse> libraryMono = webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("IFamilyGroupsService/GetSharedLibraryApps/v1/")
-                        .queryParam("access_token", accessToken)
-                        .queryParam("family_groupid", familyGroupId)
-                        .queryParam("steamid", steamId)
-                        .queryParam("include_own", true)
-                        .queryParam("include_excluded", true)
-                        .queryParam("include_free", false)
-                        .build()
-                )
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, this::handleHttpError)
-                .bodyToMono(new ParameterizedTypeReference<SteamBaseResponse<SharedLibraryAppsResponse>>() {})
-                .map(SteamBaseResponse::response) // Wyciągamy 'response' z wrappera Steam
-                .onErrorMap(e -> {
-                    if (e instanceof SteamException) return e;
-                    return new SteamException("Error getting shared library apps", e);
-                });
+    public SharedLibraryWithOwnersResponse getSharedLibraryApps(String accessToken, String familyGroupId, String steamId) {
+        String libraryUrl = UriComponentsBuilder.fromPath("/IFamilyGroupsService/GetSharedLibraryApps/v1/")
+                .queryParam("access_token", accessToken)
+                .queryParam("family_groupid", familyGroupId)
+                .queryParam("steamid", steamId)
+                .queryParam("include_own", true)
+                .queryParam("include_excluded", true)
+                .queryParam("include_free", false)
+                .toUriString();
 
-        // 2. Przetwarzamy wynik, aby pobrać dane użytkowników
-        return libraryMono.flatMap(libraryResponse -> {
-            // Zbieramy unikalne ID właścicieli do Setu
+        try {
+            ResponseEntity<SteamBaseResponse<SharedLibraryAppsResponse>> libraryResponseEntity = webClient.exchange(
+                    libraryUrl,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<SteamBaseResponse<SharedLibraryAppsResponse>>() {}
+            );
+
+            SteamBaseResponse<SharedLibraryAppsResponse> libraryBaseResponse = libraryResponseEntity.getBody();
+            if (libraryBaseResponse == null || libraryBaseResponse.response() == null) {
+                throw new SteamException("Failed to retrieve shared library apps", null);
+            }
+            SharedLibraryAppsResponse libraryResponse = libraryBaseResponse.response();
+
             Set<String> uniqueOwnerIds = libraryResponse.apps().stream()
                     .flatMap(app -> app.ownerSteamIds().stream())
                     .collect(Collectors.toSet());
 
-            // Jeśli nie ma żadnych właścicieli (pusta lista), zwracamy samą bibliotekę
             if (uniqueOwnerIds.isEmpty()) {
-                return Mono.just(new SharedLibraryWithOwnersResponse(libraryResponse, Collections.emptyList()));
+                return new SharedLibraryWithOwnersResponse(libraryResponse, Collections.emptyList());
             }
 
-            // Łączymy ID w jeden string oddzielony przecinkami
             String steamIdsParam = String.join(",", uniqueOwnerIds);
+            SteamPlayerSummariesResponse summaryResponse = getPlayerSummaries(steamIdsParam);
+            return new SharedLibraryWithOwnersResponse(libraryResponse, summaryResponse.response().players());
 
-            // 3. Wywołujemy getPlayerSummaries dla zebranych ID
-            return getPlayerSummaries(steamIdsParam)
-                    .map(summaryResponse -> summaryResponse.response().players())
-                    .map(players -> new SharedLibraryWithOwnersResponse(libraryResponse, players));
-        });
+        } catch (HttpClientErrorException e) {
+            throw new SteamException("Steam API returned error: " + e.getStatusCode() + " " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new SteamException("Error getting shared library apps", e);
+        }
     }
 
     @Cacheable(value = "playerSummaries", key = "#steamids")
-    public Mono<SteamPlayerSummariesResponse> getPlayerSummaries(String steamids) {
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("ISteamUser/GetPlayerSummaries/v2/")
-                        .queryParam("key", apiKey)
-                        .queryParam("steamids", steamids)
-                        .build()
-                )
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, this::handleHttpError)
-                .bodyToMono(new ParameterizedTypeReference<SteamPlayerSummariesResponse>() {})
-                .onErrorMap(e -> {
-                    if (e instanceof SteamException) return e;
-                    return new SteamException("Error getting player summaries", e);
-                });
+    public SteamPlayerSummariesResponse getPlayerSummaries(String steamids) {
+        String url = UriComponentsBuilder.fromPath("/ISteamUser/GetPlayerSummaries/v2/")
+                .queryParam("key", apiKey)
+                .queryParam("steamids", steamids)
+                .toUriString();
+        try {
+            ResponseEntity<SteamPlayerSummariesResponse> response = webClient.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<SteamPlayerSummariesResponse>() {}
+            );
+            return response.getBody();
+        } catch (HttpClientErrorException e) {
+            throw new SteamException("Steam API returned error: " + e.getStatusCode() + " " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new SteamException("Error getting player summaries", e);
+        }
     }
 }
 

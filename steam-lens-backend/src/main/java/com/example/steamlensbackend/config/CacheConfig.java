@@ -12,7 +12,6 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager  caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setAsyncCacheMode(true);
         return caffeineCacheManager;
     }
 }

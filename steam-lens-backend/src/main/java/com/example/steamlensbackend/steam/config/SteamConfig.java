@@ -1,11 +1,12 @@
 package com.example.steamlensbackend.steam.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class SteamConfig {
@@ -17,17 +18,17 @@ public class SteamConfig {
     private String steamStoreBaseUrl;
 
     @Bean
-    public WebClient steamWebClient(WebClient.Builder builder) {
+    public RestTemplate steamWebClient(RestTemplateBuilder builder) {
         return builder
-                .baseUrl(steamBaseUrl)
+                .rootUri(steamBaseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }
 
     @Bean
-    public WebClient steamStoreWebClient(WebClient.Builder builder) {
+    public RestTemplate steamStoreWebClient(RestTemplateBuilder builder) {
         return builder
-                .baseUrl(steamStoreBaseUrl)
+                .rootUri(steamStoreBaseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }

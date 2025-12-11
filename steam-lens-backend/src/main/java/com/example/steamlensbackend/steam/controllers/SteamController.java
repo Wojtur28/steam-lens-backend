@@ -10,11 +10,11 @@ import com.example.steamlensbackend.steam.services.StatisticsService;
 import com.example.steamlensbackend.steam.services.SteamService;
 import com.example.steamlensbackend.steam.wrappers.PagedResponse;
 import com.example.steamlensbackend.steam.wrappers.SuccessResponse;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -32,24 +32,22 @@ public class SteamController {
     }
 
     @GetMapping("/user/games/{steamId}")
-    public Mono<PagedResponse<List<GameResponse>>> getUserOwnedGames(@PathVariable String steamId, PageableRequest pageableRequest) {
-        return playerService.getUserGames(steamId, pageableRequest.getPage(), pageableRequest.getPageSize());
+    public ResponseEntity<PagedResponse<List<GameResponse>>> getUserOwnedGames(@PathVariable String steamId, PageableRequest pageableRequest) {
+        return ResponseEntity.ok(playerService.getUserGames(steamId, pageableRequest.getPage(), pageableRequest.getPageSize()));
     }
 
     @GetMapping("/dashboard/{steamId}")
-    public Mono<SuccessResponse<DashboardStatisticResponse>> getUserStatistics(@PathVariable String steamId) {
-        return this.statisticsService.getDashboardStatistics(steamId);
+    public ResponseEntity<SuccessResponse<DashboardStatisticResponse>> getUserStatistics(@PathVariable String steamId) {
+        return ResponseEntity.ok(this.statisticsService.getDashboardStatistics(steamId));
     }
 
     @GetMapping("/games/{appId}")
-    public Mono<SuccessResponse<SteamGameDetailsResponse>> getGameDetails(@PathVariable String appId) {
-        return steamService.getSteamGameDetails(appId)
-                .map(SuccessResponse::of);
+    public ResponseEntity<SuccessResponse<SteamGameDetailsResponse>> getGameDetails(@PathVariable String appId) {
+        return ResponseEntity.ok(SuccessResponse.of(steamService.getSteamGameDetails(appId)));
     }
 
     @GetMapping("/users/{steamids}/summaries")
-    public Mono<SuccessResponse<SteamPlayerSummariesResponse>> getPlayerSummaries(@PathVariable String steamids) {
-        return steamService.getPlayerSummaries(steamids)
-                .map(SuccessResponse::of);
+    public ResponseEntity<SuccessResponse<SteamPlayerSummariesResponse>> getPlayerSummaries(@PathVariable String steamids) {
+        return ResponseEntity.ok(SuccessResponse.of(steamService.getPlayerSummaries(steamids)));
     }
 }

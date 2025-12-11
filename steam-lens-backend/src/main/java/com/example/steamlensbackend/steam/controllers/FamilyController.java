@@ -2,12 +2,11 @@ package com.example.steamlensbackend.steam.controllers;
 
 import com.example.steamlensbackend.steam.dto.response.FamilyGroupDetailsResponse;
 import com.example.steamlensbackend.steam.dto.response.FamilyGroupForUserResponse;
-import com.example.steamlensbackend.steam.dto.response.SharedLibraryAppsResponse;
 import com.example.steamlensbackend.steam.dto.response.SharedLibraryWithOwnersResponse;
 import com.example.steamlensbackend.steam.services.SteamService;
 import com.example.steamlensbackend.steam.wrappers.SuccessResponse;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/api/steam/family")
@@ -20,31 +19,24 @@ public class FamilyController {
     }
 
     @GetMapping("/my-group")
-    public Mono<SuccessResponse<FamilyGroupForUserResponse>> getMyFamilyGroup(
+    public ResponseEntity<SuccessResponse<FamilyGroupForUserResponse>> getMyFamilyGroup(
             @RequestHeader("X-Steam-Access-Token") String accessToken,
             @RequestParam String steamId) {
-
-        return steamService.getFamilyGroupForUser(steamId, accessToken)
-                .map(response -> SuccessResponse.of(response.response()));
+        return ResponseEntity.ok(SuccessResponse.of(steamService.getFamilyGroupForUser(steamId, accessToken).response()));
     }
 
     @GetMapping("/details/{familyGroupId}")
-    public Mono<SuccessResponse<FamilyGroupDetailsResponse>> getFamilyDetails(
+    public ResponseEntity<SuccessResponse<FamilyGroupDetailsResponse>> getFamilyDetails(
             @RequestHeader("X-Steam-Access-Token") String accessToken,
             @PathVariable String familyGroupId) {
-
-        return steamService.getFamilyGroupDetails(familyGroupId, accessToken)
-                .map(response -> SuccessResponse.of(response.response()));
+        return ResponseEntity.ok(SuccessResponse.of(steamService.getFamilyGroupDetails(familyGroupId, accessToken).response()));
     }
 
     @GetMapping("/shared-library/{familyGroupId}")
-    public Mono<SuccessResponse<SharedLibraryWithOwnersResponse>> getSharedLibrary(
+    public ResponseEntity<SuccessResponse<SharedLibraryWithOwnersResponse>> getSharedLibrary(
             @RequestHeader("X-Steam-Access-Token") String accessToken,
             @PathVariable String familyGroupId,
             @RequestParam String steamId) {
-
-        return steamService.getSharedLibraryApps(accessToken, familyGroupId, steamId)
-                .map(SuccessResponse::of);
+        return ResponseEntity.ok(SuccessResponse.of(steamService.getSharedLibraryApps(accessToken, familyGroupId, steamId)));
     }
-    //
 }
