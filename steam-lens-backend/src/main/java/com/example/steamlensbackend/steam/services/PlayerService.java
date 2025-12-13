@@ -7,7 +7,6 @@ import com.example.steamlensbackend.steam.wrappers.PagedResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class PlayerService {
@@ -21,10 +20,5 @@ public class PlayerService {
         SteamBaseResponse<OwnedGamesResponse> response = steamService.getUserOwnedGames(steamid, null);
         List<GameResponse> gameResponses = response.response().games();
         return PageableService.paginate(gameResponses, page, pageSize);
-    }
-
-    public Map<String, Integer> getNumberOfUserGames(String steamid) {
-        SteamBaseResponse<OwnedGamesResponse> response = steamService.getUserOwnedGames(steamid, null);
-        return Map.of("gamesCount", response.response().gameCount());
     }
 }
