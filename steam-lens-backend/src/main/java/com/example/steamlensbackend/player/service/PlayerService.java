@@ -15,6 +15,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -98,7 +99,7 @@ public class PlayerService {
             return response.getBody();
         } catch (HttpClientErrorException e) {
             logger.error("Steam API error for {}: {} - {}", errorContext, e.getStatusCode(), e.getResponseBodyAsString());
-            throw new SteamException("Steam API returned error: " + e.getStatusCode(), e);
+            throw new SteamException("Steam API returned error: " + e.getStatusCode(), e, HttpStatus.valueOf(e.getStatusCode().value()));
         } catch (Exception e) {
             logger.error("An unexpected error occurred for {}: {}", errorContext, e.getMessage(), e);
             throw new SteamException("Error during Steam API request for " + errorContext, e);

@@ -12,9 +12,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SteamException.class)
     public ResponseEntity<ApiResponse<Object>> handleSteamException(SteamException e) {
-        ErrorResponse<Object> errorResponse = ErrorResponse.of("SOMETHING_WENT_WRONG", e.getMessage());
+        ErrorResponse<Object> errorResponse = ErrorResponse.of("STEAM_API_ERROR", e.getMessage());
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        return ResponseEntity.status(e.getHttpStatus()).body(errorResponse);
     }
 
     @ExceptionHandler(Exception.class)

@@ -26,11 +26,12 @@ public class FamilyController {
         return ResponseEntity.ok(SuccessResponse.of(familyService.getFamilyGroupForUser(steamId, accessToken).response()));
     }
 
-    @GetMapping("/{familyGroupId}")
+    @GetMapping
     public ResponseEntity<SuccessResponse<FamilyGroupDetailsResponse>> getFamilyDetails(
             @RequestHeader("X-Steam-Access-Token") String accessToken,
-            @PathVariable String familyGroupId) {
-        return ResponseEntity.ok(SuccessResponse.of(familyService.getFamilyGroupDetails(familyGroupId, accessToken).response()));
+            @RequestHeader("X-Steam-Id") String steamId,
+            @RequestHeader("X-Family-Id") String familyGroupId) {
+        return ResponseEntity.ok(SuccessResponse.of(familyService.getFamilyGroupDetails(accessToken, familyGroupId, steamId).response()));
     }
 
     @GetMapping("/{familyGroupId}/shared-library")

@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -58,7 +59,7 @@ public class FamilyService {
             return response.getBody();
         } catch (HttpClientErrorException e) {
             logger.error("Steam API error for {}: {} - {}", errorContext, e.getStatusCode(), e.getResponseBodyAsString());
-            throw new SteamException("Steam API returned error: " + e.getStatusCode(), e);
+            throw new SteamException("Steam API returned error: " + e.getStatusCode(), e, HttpStatus.valueOf(e.getStatusCode().value()));
         } catch (Exception e) {
             logger.error("An unexpected error occurred for {}: {}", errorContext, e.getMessage(), e);
             throw new SteamException("Error during Steam API request for " + errorContext, e);
@@ -79,18 +80,45 @@ public class FamilyService {
         );
     }
 
-    public SteamBaseResponse<FamilyGroupDetailsResponse> getFamilyGroupDetails(String familyGroupId, String accessToken) {
+    public SteamBaseResponse<FamilyGroupDetailsResponse> getFamilyGroupDetails(String accessToken, String familyGroupId, String steamId) {
         String url = UriComponentsBuilder.fromPath(GET_FAMILY_GROUP_DETAILS_PATH)
                 .queryParam("access_token", accessToken)
                 .queryParam("family_groupid", familyGroupId)
+                .queryParam("steamid", steamId)
                 .toUriString();
 
-        return executeRequest(
-                webClient,
-                url,
-                new ParameterizedTypeReference<>() {},
-                "family group details for familyGroupId: " + familyGroupId
-        );
+        logger.info("=== DEBUG getFamilyGroupDetails ===");
+        logger.info("Request URL: {}", url);
+        logger.info("Family Group ID: {}", familyGroupId);
+        logger.info("Steam ID: {}", steamId);
+
+        try {
+            ResponseEntity<String> rawResponse = webClient.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    String.class
+            );
+
+            logger.info("HTTP Status: {}", rawResponse.getStatusCode());
+            logger.info("Raw Response Body: {}", rawResponse.getBody());
+
+            SteamBaseResponse<FamilyGroupDetailsResponse> response = executeRequest(
+                    webClient,
+                    url,
+                    new ParameterizedTypeReference<>() {},
+                    "family group details for familyGroupId: " + familyGroupId
+            );
+
+            logger.info("Deserialized Response: {}", response);
+            logger.info("Response data: {}", response != null ? response.response() : "null");
+            logger.info("=== END DEBUG ===");
+
+            return response;
+        } catch (Exception e) {
+            logger.error("Error during request", e);
+            throw e;
+        }
     }
 
     public SharedLibraryPriceResponse getSharedLibraryApps(String accessToken, String familyGroupId, String steamId, Pageable pageable, String apiKey) {
