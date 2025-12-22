@@ -1,12 +1,12 @@
 package com.example.steamlensbackend.family.dto;
 
-import java.math.BigDecimal;
+import javax.money.MonetaryAmount;
 
 public record OwnerGameValue(
         String steamId,
         String name,
         String avatarUrl,
-        BigDecimal totalValue,
+        MonetaryAmount totalValue,
         int gameCount
 ) {
 }

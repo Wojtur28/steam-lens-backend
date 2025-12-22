@@ -15,7 +15,7 @@ public record FamilyGroupDetailsResponse(
 
     public record FamilyMember(
         @JsonProperty("steamid") String steamId,
-        @JsonProperty("role") Integer role, // 1 = Adult, 2 = Child
+        @JsonProperty("role") Integer role,
         @JsonProperty("time_joined") Integer timeJoined
     ) {}
 }

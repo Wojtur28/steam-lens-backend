@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/games")
 public class GameController {
@@ -19,7 +22,7 @@ public class GameController {
     }
 
     @GetMapping("/{appId}")
-    public ResponseEntity<SuccessResponse<SteamGameDetailsResponse>> getGameDetails(@PathVariable String appId) {
-        return ResponseEntity.ok(SuccessResponse.of(gameService.getSteamGameDetails(appId)));
+    public ResponseEntity<SuccessResponse<Map<Long, SteamGameDetailsResponse>>> getGameDetails(@PathVariable List<Long> appId) {
+        return ResponseEntity.ok(SuccessResponse.of(gameService.getSteamGamesDetails(appId)));
     }
 }
