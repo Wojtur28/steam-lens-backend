@@ -1,0 +1,14 @@
+# Ignorujemy niepotrzebne pliki przy budowaniu obrazu Docker
+.gradle
+build
+.idea
+*.iml
+.git
+.gitignore
+README.md
+docker-compose.yml
+
+# Kubernetes manifests (jeśli będą)
+k8s/
+*.yaml
+*.yml

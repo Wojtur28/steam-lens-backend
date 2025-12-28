@@ -1,0 +1,17 @@
+spring:
+  data:
+    redis:
+      port: '6379'
+      host: localhost
+    mongodb:
+      uri: mongodb://admin:admin@localhost:27017/steamlens?authSource=admin
+  application:
+    name: steam-lens-backend
+  profiles:
+    include: local
+steam:
+  api:
+    baseUrl: https://api.steampowered.com
+  store:
+    api:
+      baseUrl: https://store.steampowered.com

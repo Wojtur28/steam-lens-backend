@@ -11,11 +11,15 @@ import org.springframework.web.client.RestTemplate;
 @Configuration
 public class SteamConfig {
 
-    @Value("${steam.api.baseUrl}")
-    private String steamBaseUrl;
+    private final String steamBaseUrl;
+    private final String steamStoreBaseUrl;
 
-    @Value("${steam.store.api.baseUrl}")
-    private String steamStoreBaseUrl;
+    public SteamConfig(
+            @Value("${steam.api.baseUrl}") String steamBaseUrl,
+            @Value("${steam.store.api.baseUrl}") String steamStoreBaseUrl) {
+        this.steamBaseUrl = steamBaseUrl;
+        this.steamStoreBaseUrl = steamStoreBaseUrl;
+    }
 
     @Bean
     public RestTemplate steamWebClient(RestTemplateBuilder builder) {

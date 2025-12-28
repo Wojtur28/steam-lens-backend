@@ -1,0 +1,9 @@
+spring:
+  data:
+    redis:
+      host: redis
+      port: 6379
+    mongodb:
+      uri: mongodb://admin:admin@mongo:27017/steamlens?authSource=admin
+      host: mongo
+      port: 27017

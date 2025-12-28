@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: steamlens-backend
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: steamlens-backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: steamlens-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: steamlens-backend
+  template:
+    metadata:
+      labels:
+        app: steamlens-backend
+    spec:
+      containers:
+        - name: steamlens-backend
+          image: steamlens-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker"

@@ -45,7 +45,7 @@ public class FamilyService {
 
     private final SteamGameRepository steamGameRepository;
     @Qualifier("steamWebClient")
-    private final RestTemplate webClient;
+    private final RestTemplate steamWebClient;
     private final PlayerService playerService;
 
     private <T> T executeRequest(RestTemplate restTemplate, String url, ParameterizedTypeReference<T> responseType, String errorContext) {
@@ -73,7 +73,7 @@ public class FamilyService {
                 .toUriString();
 
         return executeRequest(
-                webClient,
+                steamWebClient,
                 url,
                 new ParameterizedTypeReference<>() {},
                 "family group for user: " + steamId
@@ -93,7 +93,7 @@ public class FamilyService {
         logger.info("Steam ID: {}", steamId);
 
         try {
-            ResponseEntity<String> rawResponse = webClient.exchange(
+            ResponseEntity<String> rawResponse = steamWebClient.exchange(
                     url,
                     HttpMethod.GET,
                     null,
@@ -104,7 +104,7 @@ public class FamilyService {
             logger.info("Raw Response Body: {}", rawResponse.getBody());
 
             SteamBaseResponse<FamilyGroupDetailsResponse> response = executeRequest(
-                    webClient,
+                    steamWebClient,
                     url,
                     new ParameterizedTypeReference<>() {},
                     "family group details for familyGroupId: " + familyGroupId
@@ -132,7 +132,7 @@ public class FamilyService {
                 .toUriString();
 
         SteamBaseResponse<SharedLibraryAppsResponse> libraryBaseResponse = executeRequest(
-                webClient,
+                steamWebClient,
                 libraryUrl,
                 new ParameterizedTypeReference<>() {},
                 "shared library for familyGroupId: " + familyGroupId

@@ -1,4 +1,16 @@
 services:
+  app:
+    build: .
+    container_name: steamlens-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - redis
+      - mongo
+    restart: always
+
   redis:
     image: redis:alpine
     container_name: steamlens-redis
