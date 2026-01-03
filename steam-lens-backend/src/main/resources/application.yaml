@@ -4,14 +4,35 @@ spring:
       port: '6379'
       host: localhost
     mongodb:
-      uri: mongodb://admin:admin@localhost:27017/steamlens?authSource=admin
+      uri: mongodb://admin:admin@localhost:27018/steamlens?authSource=admin
   application:
     name: steam-lens-backend
   profiles:
     include: local
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: steam-lens-shared-library-consumer
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.steamlensbackend.kafka.dto
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 steam:
   api:
     baseUrl: https://api.steampowered.com
   store:
     api:
       baseUrl: https://store.steampowered.com
+
+async:
+  request:
+    redis:
+      key-prefix: "async:request:"
+      ttl-hours: 1
+    kafka:
+      topic: shared-library-requests

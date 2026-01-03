@@ -7,3 +7,5 @@ spring:
       uri: mongodb://admin:admin@mongo:27017/steamlens?authSource=admin
       host: mongo
       port: 27017
+  kafka:
+    bootstrap-servers: kafka:29092

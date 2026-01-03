@@ -1,5 +1,6 @@
 package com.example.steamlensbackend.common.exceptions;
 
+import com.example.steamlensbackend.async.exception.AsyncRequestNotFoundException;
 import com.example.steamlensbackend.common.wrappers.ApiResponse;
 import com.example.steamlensbackend.common.wrappers.ErrorResponse;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,12 @@ public class GlobalExceptionHandler {
         ErrorResponse<Object> errorResponse = ErrorResponse.of("STEAM_API_ERROR", e.getMessage());
 
         return ResponseEntity.status(e.getHttpStatus()).body(errorResponse);
+    }
+
+    @ExceptionHandler(AsyncRequestNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAsyncRequestNotFoundException(AsyncRequestNotFoundException e) {
+        ErrorResponse<Object> errorResponse = ErrorResponse.of("REQUEST_NOT_FOUND", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
     @ExceptionHandler(Exception.class)
