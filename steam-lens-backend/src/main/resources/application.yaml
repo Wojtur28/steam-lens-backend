@@ -36,3 +36,4 @@ async:
       ttl-hours: 1
     kafka:
       topic: shared-library-requests
+      achievement-topic: achievement-requests

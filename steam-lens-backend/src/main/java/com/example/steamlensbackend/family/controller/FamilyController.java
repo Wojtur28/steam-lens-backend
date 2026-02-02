@@ -6,6 +6,7 @@ import com.example.steamlensbackend.async.service.AsyncRequestService;
 import com.example.steamlensbackend.common.wrappers.SuccessResponse;
 import com.example.steamlensbackend.family.dto.FamilyGroupDetailsResponse;
 import com.example.steamlensbackend.family.dto.FamilyGroupForUserResponse;
+import com.example.steamlensbackend.family.dto.FamilyWishlistResponse;
 import com.example.steamlensbackend.family.service.FamilyService;
 import com.example.steamlensbackend.family.service.SharedLibraryAsyncService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -60,6 +61,18 @@ public class FamilyController {
     public ResponseEntity<SuccessResponse<AsyncRequestStatusResponse>> getRequestStatus(
             @PathVariable String requestId) {
         return ResponseEntity.ok(SuccessResponse.of(asyncRequestService.getRequestStatus(requestId)));
+    }
+
+    @GetMapping("/{familyGroupId}/wishlist")
+    public ResponseEntity<SuccessResponse<FamilyWishlistResponse>> getFamilyWishlist(
+            @RequestHeader("X-API-KEY") String apiKey,
+            @RequestHeader("X-Steam-Access-Token") String accessToken,
+            @RequestHeader("X-Steam-Id") String steamId,
+            @PathVariable String familyGroupId,
+            Pageable pageable) {
+        return ResponseEntity.ok(SuccessResponse.of(
+                familyService.getFamilyWishlist(accessToken, familyGroupId, steamId, apiKey, pageable)
+        ));
     }
 
 }

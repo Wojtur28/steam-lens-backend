@@ -6,16 +6,17 @@ import com.example.steamlensbackend.common.exceptions.SteamException;
 import com.example.steamlensbackend.common.wrappers.PagedResponse;
 import com.example.steamlensbackend.family.dto.FamilyGroupDetailsResponse;
 import com.example.steamlensbackend.family.dto.FamilyGroupForUserResponse;
+import com.example.steamlensbackend.family.dto.FamilyWishlistResponse;
 import com.example.steamlensbackend.family.dto.OwnerGameValue;
 import com.example.steamlensbackend.family.dto.SharedLibraryAppsResponse;
 import com.example.steamlensbackend.family.dto.SharedLibraryPriceResponse;
+import com.example.steamlensbackend.family.dto.SteamWishlistResponse;
 import com.example.steamlensbackend.game.dto.GamePriceInfo;
 import com.example.steamlensbackend.game.model.SteamGameDocument;
 import com.example.steamlensbackend.game.repository.SteamGameRepository;
 import com.example.steamlensbackend.player.dto.SteamPlayerSummariesResponse;
 import com.example.steamlensbackend.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
-import org.javamoney.moneta.Money;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,7 +30,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import javax.money.MonetaryAmount;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,11 +43,13 @@ public class FamilyService {
     private static final String GET_FAMILY_GROUP_FOR_USER_PATH = "/IFamilyGroupsService/GetFamilyGroupForUser/v1/";
     private static final String GET_FAMILY_GROUP_DETAILS_PATH = "/IFamilyGroupsService/GetFamilyGroup/v1/";
     private static final String GET_SHARED_LIBRARY_APPS_PATH = "/IFamilyGroupsService/GetSharedLibraryApps/v1/";
+    private static final String GET_WISHLIST_PATH = "/IWishlistService/GetWishlist/v1/";
 
     private final SteamGameRepository steamGameRepository;
     @Qualifier("steamWebClient")
     private final RestTemplate steamWebClient;
     private final PlayerService playerService;
+    private final WishlistCacheService wishlistCacheService;
 
     private <T> T executeRequest(RestTemplate restTemplate, String url, ParameterizedTypeReference<T> responseType, String errorContext) {
         try {
@@ -87,11 +90,6 @@ public class FamilyService {
                 .queryParam("steamid", steamId)
                 .toUriString();
 
-        logger.info("=== DEBUG getFamilyGroupDetails ===");
-        logger.info("Request URL: {}", url);
-        logger.info("Family Group ID: {}", familyGroupId);
-        logger.info("Steam ID: {}", steamId);
-
         try {
             ResponseEntity<String> rawResponse = steamWebClient.exchange(
                     url,
@@ -100,19 +98,12 @@ public class FamilyService {
                     String.class
             );
 
-            logger.info("HTTP Status: {}", rawResponse.getStatusCode());
-            logger.info("Raw Response Body: {}", rawResponse.getBody());
-
             SteamBaseResponse<FamilyGroupDetailsResponse> response = executeRequest(
                     steamWebClient,
                     url,
                     new ParameterizedTypeReference<>() {},
                     "family group details for familyGroupId: " + familyGroupId
             );
-
-            logger.info("Deserialized Response: {}", response);
-            logger.info("Response data: {}", response != null ? response.response() : "null");
-            logger.info("=== END DEBUG ===");
 
             return response;
         } catch (Exception e) {
@@ -157,9 +148,12 @@ public class FamilyService {
                     String name = (dbGame != null) ? dbGame.getName() : app.name();
                     String image = (dbGame != null) ? dbGame.getHeaderImage() : app.capsuleFilename();
 
-                    MonetaryAmount price = (dbGame != null) && dbGame.getPrice() != null
-                            ? dbGame.getPrice()
-                            : Money.of(0, "USD");
+                    BigDecimal price;
+                    if (dbGame != null && dbGame.getPrice() != null) {
+                        price = dbGame.getPrice();
+                    } else {
+                        price = BigDecimal.ZERO;
+                    }
 
                     return new GamePriceInfo(app.appId(), name, image, price, app.ownerSteamIds());
                 })
@@ -174,12 +168,12 @@ public class FamilyService {
                 .collect(Collectors.toMap(SteamPlayerSummariesResponse.Player::steamid, Function.identity()));
 
 
-        Map<String, MonetaryAmount> ownerTotalValues = new HashMap<>();
+        Map<String, BigDecimal> ownerTotalValues = new HashMap<>();
         Map<String, Integer> ownerGameCounts = new HashMap<>();
 
         for (GamePriceInfo game : gamePriceInfos) {
             for (String ownerId : game.ownerSteamIds()) {
-                ownerTotalValues.merge(ownerId, game.price(), MonetaryAmount::add);
+                ownerTotalValues.merge(ownerId, game.price(), BigDecimal::add);
                 ownerGameCounts.merge(ownerId, 1, Integer::sum);
             }
         }
@@ -194,7 +188,7 @@ public class FamilyService {
                             ownerId,
                             name,
                             avatar,
-                            ownerTotalValues.getOrDefault(ownerId, Money.of(0, "USD")),
+                            ownerTotalValues.getOrDefault(ownerId, BigDecimal.ZERO),
                             ownerGameCounts.getOrDefault(ownerId, 0)
                     );
                 })
@@ -202,10 +196,111 @@ public class FamilyService {
 
         PagedResponse<List<GamePriceInfo>> pagedGames = PageableService.paginate(gamePriceInfos, pageable);
 
-        MonetaryAmount totalLibraryValue = gamePriceInfos.stream()
+        BigDecimal totalLibraryValue = gamePriceInfos.stream()
                 .map(GamePriceInfo::price)
-                .reduce(Money.of(0, "USD"), MonetaryAmount::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return new SharedLibraryPriceResponse(pagedGames, ownerGameValues, totalLibraryValue, libraryResponse.apps().size());
+    }
+
+    public SteamBaseResponse<SteamWishlistResponse> getWishlistForUser(String steamId, String accessToken) {
+        String url = UriComponentsBuilder.fromPath(GET_WISHLIST_PATH)
+                .queryParam("key", accessToken)
+                .queryParam("steamid", steamId)
+                .toUriString();
+
+        return executeRequest(
+                steamWebClient,
+                url,
+                new ParameterizedTypeReference<>() {},
+                "wishlist for user: " + steamId
+        );
+    }
+
+    public FamilyWishlistResponse getFamilyWishlist(String accessToken, String familyGroupId, String steamId, String apiKey, Pageable pageable) {
+        Optional<WishlistCacheService.WishlistCacheEntry> cached = wishlistCacheService.getCachedWishlist(familyGroupId);
+
+        if (cached.isPresent()) {
+            WishlistCacheService.WishlistCacheEntry cacheEntry = cached.get();
+            PagedResponse<List<FamilyWishlistResponse.WishlistedGame>> pagedGames =
+                    PageableService.paginate(cacheEntry.games(), pageable);
+            return new FamilyWishlistResponse(pagedGames, cacheEntry.games().size(), cacheEntry.totalMembers());
+        }
+
+        SteamBaseResponse<FamilyGroupDetailsResponse> familyDetails = getFamilyGroupDetails(accessToken, familyGroupId, steamId);
+
+        List<FamilyGroupDetailsResponse.FamilyMember> members = Optional.ofNullable(familyDetails)
+                .map(SteamBaseResponse::response)
+                .map(FamilyGroupDetailsResponse::members)
+                .orElse(Collections.emptyList());
+
+        if (members.isEmpty()) {
+            PagedResponse<List<FamilyWishlistResponse.WishlistedGame>> emptyPage =
+                    PageableService.paginate(Collections.emptyList(), pageable);
+            return new FamilyWishlistResponse(emptyPage, 0, 0);
+        }
+
+        List<String> memberSteamIds = members.stream()
+                .map(FamilyGroupDetailsResponse.FamilyMember::steamId)
+                .toList();
+
+        Map<String, SteamPlayerSummariesResponse.Player> playerSummaries = playerService
+                .getPlayerSummaries(String.join(",", memberSteamIds), apiKey)
+                .response().players().stream()
+                .collect(Collectors.toMap(SteamPlayerSummariesResponse.Player::steamid, Function.identity()));
+
+        Map<Long, List<String>> gameToMembers = new HashMap<>();
+
+        for (String memberSteamId : memberSteamIds) {
+            try {
+                SteamBaseResponse<SteamWishlistResponse> wishlistResponse = getWishlistForUser(memberSteamId, accessToken);
+
+                List<SteamWishlistResponse.WishlistItem> items = Optional.ofNullable(wishlistResponse)
+                        .map(SteamBaseResponse::response)
+                        .map(SteamWishlistResponse::items)
+                        .orElse(Collections.emptyList());
+
+                for (SteamWishlistResponse.WishlistItem item : items) {
+                    gameToMembers.computeIfAbsent(item.appId(), k -> new ArrayList<>()).add(memberSteamId);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to fetch wishlist for user {}: {}", memberSteamId, e.getMessage());
+            }
+        }
+
+        List<Long> allAppIds = new ArrayList<>(gameToMembers.keySet());
+        List<SteamGameDocument> foundGames = steamGameRepository.findAllById(allAppIds);
+        Map<Long, SteamGameDocument> gamesMap = foundGames.stream()
+                .collect(Collectors.toMap(SteamGameDocument::getAppId, Function.identity()));
+
+        List<FamilyWishlistResponse.WishlistedGame> wishlistedGames = gameToMembers.entrySet().stream()
+                .map(entry -> {
+                    Long appId = entry.getKey();
+                    List<String> memberIds = entry.getValue();
+
+                    SteamGameDocument dbGame = gamesMap.get(appId);
+                    String name = (dbGame != null) ? dbGame.getName() : "Unknown Game";
+                    String headerImage = (dbGame != null) ? dbGame.getHeaderImage() : "";
+
+                    List<FamilyWishlistResponse.WishlistMember> wishlistMembers = memberIds.stream()
+                            .map(memberId -> {
+                                SteamPlayerSummariesResponse.Player player = playerSummaries.get(memberId);
+                                String personaName = (player != null) ? player.personaname() : "Unknown User";
+                                String avatar = (player != null) ? player.avatar() : "";
+                                return new FamilyWishlistResponse.WishlistMember(memberId, personaName, avatar);
+                            })
+                            .toList();
+
+                    return new FamilyWishlistResponse.WishlistedGame(appId, name, headerImage, wishlistMembers, wishlistMembers.size());
+                })
+                .sorted((a, b) -> Integer.compare(b.memberCount(), a.memberCount()))
+                .toList();
+
+        wishlistCacheService.cacheWishlist(familyGroupId, wishlistedGames, memberSteamIds.size());
+
+        PagedResponse<List<FamilyWishlistResponse.WishlistedGame>> pagedGames =
+                PageableService.paginate(wishlistedGames, pageable);
+
+        return new FamilyWishlistResponse(pagedGames, wishlistedGames.size(), memberSteamIds.size());
     }
 }

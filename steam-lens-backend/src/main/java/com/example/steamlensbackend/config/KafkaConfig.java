@@ -1,5 +1,6 @@
 package com.example.steamlensbackend.config;
 
+import com.example.steamlensbackend.kafka.dto.AchievementRequestMessage;
 import com.example.steamlensbackend.kafka.dto.SharedLibraryRequestMessage;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -29,6 +30,9 @@ public class KafkaConfig {
 
     @Value("${async.request.kafka.topic:shared-library-requests}")
     private String topicName;
+
+    @Value("${async.request.kafka.achievement-topic:achievement-requests}")
+    private String achievementTopicName;
 
     @Bean
     public NewTopic sharedLibraryRequestsTopic() {
@@ -73,6 +77,54 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, SharedLibraryRequestMessage> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        return factory;
+    }
+
+    // Achievement Kafka Configuration
+
+    @Bean
+    public NewTopic achievementRequestsTopic() {
+        return TopicBuilder.name(achievementTopicName)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public ProducerFactory<String, AchievementRequestMessage> achievementProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
+    }
+
+    @Bean
+    public KafkaTemplate<String, AchievementRequestMessage> achievementKafkaTemplate() {
+        return new KafkaTemplate<>(achievementProducerFactory());
+    }
+
+    @Bean
+    public ConsumerFactory<String, AchievementRequestMessage> achievementConsumerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        configProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "com.example.steamlensbackend.kafka.dto");
+        configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        return new DefaultKafkaConsumerFactory<>(
+                configProps,
+                new StringDeserializer(),
+                new JsonDeserializer<>(AchievementRequestMessage.class)
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, AchievementRequestMessage> achievementKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, AchievementRequestMessage> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(achievementConsumerFactory());
         return factory;
     }
 }

@@ -85,3 +85,5 @@ node_modules
 /.idea
 ../.idea/
 .idea/
+
+resources/steam_games.json

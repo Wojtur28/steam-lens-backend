@@ -20,8 +20,9 @@ public record SteamGameDetailsResponse(
         String website,
         @JsonProperty("pc_requirements") Requirements pcRequirements,
         @JsonProperty("mac_requirements") Requirements macRequirements,
-        @JsonProperty("linux_requirements") Object linuxRequirements,
+        @JsonProperty("linux_requirements") Object linuxRequirements, // Steam czasem zwraca tablicę, czasem obiekt
         List<String> developers,
+        List<String> publishers, // <--- DODANO
         @JsonProperty("package_groups") List<Object> packageGroups,
         Platforms platforms,
         Metacritic metacritic,
@@ -35,22 +36,13 @@ public record SteamGameDetailsResponse(
         Object ratings,
         @JsonProperty("price_overview") PriceOverview priceOverview
 ) {
-
     public record FullGame(String appid, String name) {}
-
     public record Requirements(String minimum, String recommended) {}
-
     public record Platforms(boolean windows, boolean mac, boolean linux) {}
-
     public record Metacritic(int score) {}
-
     public record Category(int id, String description) {}
-
     public record Genre(String id, String description) {}
-
     public record ReleaseDate(@JsonProperty("coming_soon") boolean comingSoon, String date) {}
-
     public record SupportInfo(String url, String email) {}
-
     public record ContentDescriptors(List<Integer> ids, String notes) {}
 }

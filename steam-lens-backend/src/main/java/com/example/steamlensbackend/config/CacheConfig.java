@@ -27,6 +27,7 @@ public class CacheConfig {
         cacheConfigurations.put("steamGames", defaultCacheConfig.entryTtl(Duration.ofHours(1)));
         cacheConfigurations.put("playerSummaries", defaultCacheConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put("gameDetails", defaultCacheConfig.entryTtl(Duration.ofHours(24)));
+        cacheConfigurations.put("achievementsTop", defaultCacheConfig.entryTtl(Duration.ofHours(24)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultCacheConfig)
